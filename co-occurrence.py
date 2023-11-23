@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,18 @@ parser.add_argument(
 )
 parser.add_argument(
     "-o", "--output", type=str, required=True, help="Prefix for the output name."
+)
+parser.add_argument(
+    "-s",
+    "--segments",
+    type=str,
+    help="File with a list of contigs of interest (often RdRP segments), each on a new line.",
+)
+parser.add_argument(
+    "-l",
+    "--lengths",
+    type=str,
+    help="File with the lengths of each contig",
 )
 parser.add_argument(
     "-p",
@@ -26,70 +39,124 @@ parser.add_argument(
     default=0.3,
     help="Minimum correlation to keep pairs (default: 0.3)",
 )
-parser.add_argument(
-    "-l",
-    "--lengths",
-    type=str,
-    help="File with the lengths of each contig",
-)
-args = parser.parse_args()
 
-print("Read in abundance table.")
-OTU = pd.read_csv(args.input, sep="\t", index_col=0)
 
-df = OTU.drop(OTU.columns[OTU.columns.str.contains("NC")], axis=1)
-df["sample_count"] = df.apply(lambda row: row[row != 0].count(), axis=1)
-df["proportion_samples"] = df["sample_count"] / (df.shape[1] - 1)
+def clean_abundance(df):
+    df_clean = df.drop(df.columns[df.columns.str.contains("NC")], axis=1)
+    df_clean["sample_count"] = df_clean.apply(lambda row: row[row != 0].count(), axis=1)
+    df_clean["proportion_samples"] = df_clean["sample_count"] / (df_clean.shape[1] - 1)
 
-# Define the threshold
-threshold = args.prevalence
+    return df_clean
 
-# Filter rows where the proportion of 0s is less than or equal to the threshold
-filtered_df = df[df["proportion_samples"] >= threshold].drop(
-    ["sample_count", "proportion_samples"], axis=1
-)
 
-n = len(filtered_df)
+def create_correlation_matrix(df_transposed):
+    correlation_matrix = df_transposed.corr()
 
-if args.lengths:
-    print(f"Using contig length corrected abundance table.")
-    lengths = pd.read_csv(
-        args.lengths, sep="\t", index_col=0, header=None, names=["Contig", "length"]
+    mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
+    masked_correlation_matrix = correlation_matrix.mask(mask)
+
+    correlation_matrix = masked_correlation_matrix.rename_axis(
+        axis=0, mapper="Contig1"
+    ).rename_axis(axis=1, mapper="Contig2")
+
+    return correlation_matrix
+
+
+def segment_correlation_matrix(df, segment_list):
+    correlation_results_df = pd.DataFrame()
+
+    # Loop through each segment in segment_list
+    for i in segment_list:
+        df2 = df.loc[i]
+        df3 = df.corrwith(df2, axis=1, method="spearman")
+
+        # Append the results to the DataFrame with i as the column name
+        correlation_results_df[i] = df3
+
+    return correlation_results_df
+
+
+def create_segment_list(segment_file):
+    file_path = Path(segment_file)
+
+    # Read the file into a list
+    with open(file_path, "r") as file:
+        segment_list = file.readlines()
+
+    segment_list = [line.strip() for line in segment_list]
+    return segment_list
+
+
+def main():
+    args = parser.parse_args()
+
+    print("Read in abundance table.")
+    abundance_df = pd.read_csv(args.input, sep="\t", index_col=0)
+    df = clean_abundance(abundance_df)
+
+    # Define the threshold
+    prevalence_threshold = args.prevalence
+
+    # Filter rows where the proportion of 0s is less than or equal to the threshold
+    filtered_df = df[df["proportion_samples"] >= prevalence_threshold].drop(
+        ["sample_count", "proportion_samples"], axis=1
     )
-    df = filtered_df.div(lengths["length"], axis=0).dropna(how="all")
-else:
-    print(f"Using absence/presence abundance table.")
-    df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
-print(
-    f"Calculate correlation matrix for {n} contigs (contig prevalence in samples = {threshold*100}%)."
-)
-df_transposed = df.transpose()
-correlation_matrix = df_transposed.corr("spearman")
+    n = len(filtered_df)
 
-mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
-masked_correlation_matrix = correlation_matrix.mask(mask)
-correlation_matrix = masked_correlation_matrix.rename_axis(
-    axis=0, mapper="Contig1"
-).rename_axis(axis=1, mapper="Contig2")
+    if args.lengths:
+        print(f"Using contig length corrected abundance table.")
+        lengths = pd.read_csv(
+            args.lengths, sep="\t", index_col=0, header=None, names=["Contig", "length"]
+        )
+        df = filtered_df.div(lengths["length"], axis=0).dropna(how="all")
+    else:
+        print(f"Using absence/presence abundance table.")
+        df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
-print("Write correlation matrix.")
-correlation_matrix.to_csv(args.output + "_correlation_matrix.tsv", sep="\t", index=True)
+    print(
+        f"Calculate correlation matrix for {n} contigs (contig prevalence in samples = {prevalence_threshold*100}%)."
+    )
 
-print("Write pairwise dataframe.")
+    cor_threshold = args.correlation
 
-related_contigs = correlation_matrix[
-    abs(correlation_matrix) >= args.correlation
-].stack()
+    if args.segments:
+        segment_list = create_segment_list(args.segments)
 
-result_df = pd.DataFrame(related_contigs)
-result_df = result_df.reset_index()
+        correlation_results_df = segment_correlation_matrix(df, segment_list)
 
-# Rename existing columns if necessary
-result_df.columns = ["Contig1", "Contig2", "Correlation"]
-result_df = result_df[result_df["Contig1"] != result_df["Contig2"]]
+        mask = (abs(correlation_results_df) >= cor_threshold).any(axis=1)
+        corr_df = correlation_results_df[mask]
 
-result_df.sort_values(by="Contig1", inplace=True)
-result_df.to_csv(args.output + "_related_contigs.tsv", sep="\t", index=False)
+        print(f"Write correlation matrix with a threshold of {cor_threshold}")
+        corr_df.to_csv(args.output + ".tsv", sep="\t", index=True)
+    else:
+        df_transposed = df.transpose()
+        correlation_matrix = create_correlation_matrix(df_transposed)
 
-print("Finished.")
+        print("Write correlation matrix.")
+        correlation_matrix.to_csv(
+            args.output + "_correlation_matrix.tsv", sep="\t", index=True
+        )
+
+        print("Write pairwise dataframe.")
+
+        related_contigs = correlation_matrix[
+            abs(correlation_matrix) >= cor_threshold
+        ].stack()
+
+        result_df = pd.DataFrame(related_contigs)
+        result_df = result_df.reset_index()
+
+        # Rename existing columns if necessary
+        result_df.columns = ["Contig1", "Contig2", "Correlation"]
+        result_df = result_df[result_df["Contig1"] != result_df["Contig2"]]
+
+        result_df.sort_values(by="Contig1", inplace=True)
+        result_df.to_csv(args.output + "_related_contigs.tsv", sep="\t", index=False)
+
+    print("Finished.")
+
+
+if __name__ == "__main__":
+    main()
