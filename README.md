@@ -7,7 +7,7 @@ The abundance table is either transformed to a presence/absence table or, if you
 
 The script also allows you to correlate specific contigs of interest with all other contigs in your study. It needs the names of your contigs of interest (`-s/--segments`). The output is a correlation matrix of all contigs above the correlation threshold with your contigs of interest.
 
-`co-occurrence.py` and `co-occurrence.R` are basically the same (apart from the segment specific and contig length corrected options), the python script only runs much faster (eg. for ~9000 contigs 3m vs 1h3m for the R script with 42 threads). So use the R script only if you have no other option.
+`co-occurrence.py` and `co-occurrence.R` are basically the same (apart from the segment specific and contig length corrected options), the python script only runs much faster (eg. for ~9000 contigs 3m in python vs 1h3m for the R script with 42 threads). So use the R script only if you have no other option.
 
 **Caveats:**
 1. You need a decent amount of samples with your virus a) present *and* b) absent, otherwise there will be a) no correlations or b) too many correlations with non-related contigs (eg. host sequences).
