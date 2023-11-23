@@ -10,7 +10,7 @@ The script also allows you to correlate specific contigs of interest with all ot
 `co-occurrence.py` and `co-occurrence.R` are basically the same (apart from the segment specific and contig length corrected options), the python script only runs much faster (eg. for ~9000 contigs 3m vs 1h3m for the R script with 42 threads). So use the R script only if you have no other option.
 
 **Caveats:**
-1. You need a decent amount of samples with your virus a) present *and* b) absent, otherwise there will be a) no correlations and b) too many correlations with non-related contigs (eg. host sequences).
+1. You need a decent amount of samples with your virus a) present *and* b) absent, otherwise there will be a) no correlations or b) too many correlations with non-related contigs (eg. host sequences).
 2. The correlations should always be checked, the output is not perfect and is more a tool to help you recover unknown segments. You could for example check for approximately equal coverage of your related contigs, check the open reading frames of all your contigs, etc.
 
 **Examples of input:**
@@ -37,3 +37,7 @@ Contig2 2923
 Contig3 3092
 Contig4 1490
 ```
+
+**Dependencies:**
+1. `pandas`
+2. `numpy`
