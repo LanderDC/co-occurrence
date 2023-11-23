@@ -26,6 +26,12 @@ parser.add_argument(
     default=0.3,
     help="Minimum correlation to keep pairs (default: 0.3)",
 )
+parser.add_argument(
+    "-l",
+    "--lengths",
+    type=str,
+    help="File with the lengths of each contig",
+)
 args = parser.parse_args()
 
 print("Read in abundance table.")
@@ -43,15 +49,21 @@ filtered_df = df[df["proportion_samples"] >= threshold].drop(
     ["sample_count", "proportion_samples"], axis=1
 )
 
-prevalence_df = filtered_df.map(lambda x: 1 if x > 0 else x)
-
 n = len(filtered_df)
+
+if args.lengths:
+    lengths = pd.read_csv(
+        args.lengths, sep="\t", index_col=0, header=None, names=["Contig", "length"]
+    )
+    df = filtered_df.div(lengths["length"], axis=0).dropna(how="all")
+else:
+    df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
 print(
     f"Calculate correlation matrix for {n} contigs (contig prevalence in samples = {threshold*100}%)."
 )
-prevalence_df_transposed = prevalence_df.transpose()
-correlation_matrix = prevalence_df_transposed.corr()
+df_transposed = df.transpose()
+correlation_matrix = df_transposed.corr("spearman")
 
 mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
 masked_correlation_matrix = correlation_matrix.mask(mask)
