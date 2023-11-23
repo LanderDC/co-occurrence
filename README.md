@@ -1,4 +1,4 @@
-# segment_co-occurrence
+# Co-occurrence analysis
 Scripts to correlate the presence of contigs in samples. Useful to find all segments of segmented viruses.
 
 `co-occurrence.py` and `co-occurrence.R` are basically the same, the python script only runs much faster (eg. for ~9000 contigs 3m vs 1h3m for the R script with 42 threads). So use the R script only if you have no other option.
