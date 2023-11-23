@@ -36,6 +36,12 @@ parser.add_argument(
     default=0.3,
     help="Minimum correlation to keep pairs (default: 0.3)",
 )
+parser.add_argument(
+    "-l",
+    "--lengths",
+    type=str,
+    help="File with the lengths of each contig",
+)
 args = parser.parse_args()
 
 print("Read in abundance table.")
@@ -53,13 +59,19 @@ filtered_df = df[df["proportion_samples"] >= threshold].drop(
     ["sample_count", "proportion_samples"], axis=1
 )
 
-prevalence_df = filtered_df.map(lambda x: 1 if x > 0 else x)
-
 n = len(filtered_df)
 
 print(
     f"{n} contigs were retained for correlation analysis (prevalence in samples = {threshold*100}%)"
 )
+
+if args.lengths:
+    lengths = pd.read_csv(
+        args.lengths, sep="\t", index_col=0, header=None, names=["Contig", "length"]
+    )
+    df = filtered_df.div(lengths["length"], axis=0).dropna(how="all")
+else:
+    df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
 file_path = Path(args.segments)
 
@@ -74,8 +86,8 @@ correlation_results_df = pd.DataFrame()
 
 # Loop through each segment in segment_list
 for i in segment_list:
-    df2 = prevalence_df.loc[i]
-    df3 = prevalence_df.corrwith(df2, axis=1)
+    df2 = df.loc[i]
+    df3 = df.corrwith(df2, axis=1, method="spearman")
 
     # Append the results to the DataFrame with i as the column name
     correlation_results_df[i] = df3
