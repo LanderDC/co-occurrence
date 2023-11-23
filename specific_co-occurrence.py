@@ -66,11 +66,13 @@ print(
 )
 
 if args.lengths:
+    print(f"Using contig length corrected abundance table.")
     lengths = pd.read_csv(
         args.lengths, sep="\t", index_col=0, header=None, names=["Contig", "length"]
     )
     df = filtered_df.div(lengths["length"], axis=0).dropna(how="all")
 else:
+    print(f"Using absence/presence abundance table.")
     df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
 file_path = Path(args.segments)
