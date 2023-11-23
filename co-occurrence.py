@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 # Argument parser
-parser = argparse.ArgumentParser(description="Correlation analysis script")
+parser = argparse.ArgumentParser(description="Correlation analysis script.")
 parser.add_argument(
     "-i", "--input", type=str, required=True, help="Abundance table file (tsv)"
 )
