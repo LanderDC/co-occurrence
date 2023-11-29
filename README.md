@@ -12,6 +12,7 @@ The script also allows you to correlate specific contigs of interest with all ot
 **Caveats:**
 1. You need a decent amount of samples with your virus a) present *and* b) absent, otherwise there will be a) no correlations or b) too many correlations with non-related contigs (eg. host sequences).
 2. The correlations should always be checked, the output is not perfect and is more a tool to help you recover unknown segments. You could for example check for approximately equal coverage of your related contigs, check the open reading frames of all your contigs, etc.
+3. It is always a good idea to set some threshold on your abundance table to consider contigs present in a sample. This reduces the risk of making false conclusions because of index hopping. Also for this analysis if you only consider presence/absence (i.e. one read is considered presence), the correlation analysis will not perform optimally and you might find false psoitive/negative correlations. You could set a threshold of e.g. 50% horizontal coverage to consider a contig present (if the horizontal coverage is below 50%, you set the read count to 0) or a more relaxed approach is to set a fixed threshold of e.g. 50 reads and everything below to 0.
 
 **Examples of input:**
 1. Abundance table (`-i/--input`)
