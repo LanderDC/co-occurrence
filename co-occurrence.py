@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -122,6 +123,18 @@ def main():
 
     if args.segments:
         segment_list = create_segment_list(args.segments)
+
+        # Check if all values in segment_list are present in df indices
+        missing_segments = [
+            segment for segment in segment_list if segment not in df.index
+        ]
+
+        if missing_segments:
+            missing_segments_str = ", ".join(map(str, missing_segments))
+            raise ValueError(
+                f"The following segment(s) are not present in the sample prevalence filtered abundance table: {missing_segments_str}\n"
+                f"Consider lowering the prevalence threshold (-p) which is currently at {prevalence_threshold}"
+            )
 
         correlation_results_df = segment_correlation_matrix(df, segment_list)
 
