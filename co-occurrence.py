@@ -9,36 +9,57 @@ import pandas as pd
 # Argument parser
 parser = argparse.ArgumentParser(description="Correlation analysis script.")
 parser.add_argument(
-    "-i", "--input", type=str, required=True, help="Abundance table file (tsv)"
+    "-i",
+    "--input",
+    type=str,
+    metavar="FILE",
+    required=True,
+    help="Abundance table file (tsv).",
 )
 parser.add_argument(
-    "-o", "--output", type=str, required=True, help="Prefix for the output name."
+    "-o",
+    "--output",
+    type=str,
+    metavar="OUTPUT",
+    required=True,
+    help="Prefix for the output name.",
 )
 parser.add_argument(
     "-s",
     "--segments",
     type=str,
+    metavar="FILE",
     help="File with a list of contigs of interest (often RdRP segments), each on a new line.",
 )
 parser.add_argument(
     "-l",
     "--lengths",
     type=str,
-    help="File with the lengths of each contig",
+    metavar="FILE",
+    help="File with the lengths of each contig.",
 )
 parser.add_argument(
     "-p",
     "--prevalence",
     type=float,
+    metavar="FLOAT",
     default=0.1,
-    help="Minimum percentage of samples for correlation analysis (default: %(default)s)",
+    help="Minimum percentage of samples for correlation analysis. (default: %(default)s)",
 )
 parser.add_argument(
     "-c",
     "--correlation",
     type=float,
+    metavar="FLOAT",
     default=0.5,
-    help="Minimum correlation to keep pairs (default: %(default)s)",
+    help="Minimum correlation to keep pairs. (default: %(default)s)",
+)
+parser.add_argument(
+    "--strict",
+    dest="strict",
+    action="store_true",
+    default=False,
+    help="The correlation threshold should be met for all provided segments. (default: %(default)s)",
 )
 
 
@@ -116,7 +137,7 @@ def main():
         df = filtered_df.map(lambda x: 1 if x > 0 else x)
 
     print(
-        f"Calculate correlation matrix for {n} contigs (contig prevalence in samples = {prevalence_threshold*100}%)."
+        f"Calculate correlation matrix for {n} contigs (contig prevalence in samples set to {prevalence_threshold*100}%)."
     )
 
     cor_threshold = args.correlation
@@ -138,7 +159,13 @@ def main():
 
         correlation_results_df = segment_correlation_matrix(df, segment_list)
 
-        mask = (abs(correlation_results_df) >= cor_threshold).any(axis=1)
+        if args.strict:
+            print("true")
+            mask = (correlation_results_df >= cor_threshold).all(axis=1)
+        else:
+            print("false")
+            mask = (correlation_results_df >= cor_threshold).any(axis=1)
+
         corr_df = correlation_results_df[mask]
 
         print(f"Write correlation matrix with a threshold of {cor_threshold}")
@@ -155,7 +182,7 @@ def main():
         print("Write pairwise dataframe.")
 
         related_contigs = correlation_matrix[
-            abs(correlation_matrix) >= cor_threshold
+            correlation_matrix >= cor_threshold
         ].stack()
 
         result_df = pd.DataFrame(related_contigs)
