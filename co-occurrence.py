@@ -31,14 +31,14 @@ parser.add_argument(
     "--prevalence",
     type=float,
     default=0.1,
-    help="Minimum percentage of samples for correlation analysis (default: 0.1)",
+    help="Minimum percentage of samples for correlation analysis (default: %(default)s)",
 )
 parser.add_argument(
     "-c",
     "--correlation",
     type=float,
-    default=0.3,
-    help="Minimum correlation to keep pairs (default: 0.3)",
+    default=0.5,
+    help="Minimum correlation to keep pairs (default: %(default)s)",
 )
 
 
